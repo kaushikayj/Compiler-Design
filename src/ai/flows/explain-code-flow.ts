@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Provides an AI flow to explain analyzed code.
@@ -12,7 +11,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import type { Language, Token, ThreeAddressCode, Quadruple, SymbolTable } from '@/types/compiler';
 
-// --- Input Schema ---
+// --- Input Schema (for the exported function `explainCode`) ---
 const TokenSchema = z.object({
     type: z.string(), // TokenType is complex, simplifying to string for schema
     value: z.string(),
@@ -71,10 +70,17 @@ export async function explainCode(input: ExplainCodeInput): Promise<ExplainCodeO
 }
 
 
+// --- Schema for the *prompt* itself (includes pre-stringified fields) ---
+const ExplainPromptInternalInputSchema = ExplainCodeInputSchema.extend({
+    tokensStringified: z.string().describe('JSON string representation of the tokens.'),
+    symbolTableStringified: z.string().describe('JSON string representation of the symbol table.'),
+});
+
+
 // --- Genkit Prompt Definition ---
 const explainPrompt = ai.definePrompt({
   name: 'explainCodePrompt',
-  input: { schema: ExplainCodeInputSchema },
+  input: { schema: ExplainPromptInternalInputSchema }, // Use the extended internal schema
   output: { schema: ExplainCodeOutputSchema },
   prompt: `You are an expert compiler design assistant and programmer. Your task is to explain a given piece of {{language}} source code based on its analysis results.
 
@@ -88,7 +94,7 @@ Here are the analysis results:
 **1. Tokens:**
 {{#if tokens.length}}
 \`\`\`json
-{{{JSONstringify tokens}}}
+{{{tokensStringified}}}
 \`\`\`
 {{else}}
 (No tokens provided or generated)
@@ -115,7 +121,7 @@ Here are the analysis results:
 **4. Symbol Table:**
 {{#if symbolTable}}
 \`\`\`json
-{{{JSONstringify symbolTable}}}
+{{{symbolTableStringified}}}
 \`\`\`
 {{else}}
 (No Symbol Table provided or generated)
@@ -133,16 +139,15 @@ Provide a clear and concise explanation covering the following points:
 
 Structure your explanation clearly. Use markdown formatting for readability. Focus on explaining the provided information effectively.
 `,
-  // Define custom Handlebars helpers right within the prompt definition
+  // Define custom Handlebars helpers (JSONstringify removed)
   helpers: {
-        JSONstringify: (context: any) => JSON.stringify(context, null, 2),
-        formatTAC: (tac: ThreeAddressCode[]) => {
+        formatTAC: (tac: ThreeAddressCode[] | undefined) => { // Allow undefined
             if (!tac || tac.length === 0) return "(empty)";
             return tac.map((code, index) =>
                 `${index + 1}: ${code.op}\t${code.arg1 ?? ' '}\t${code.arg2 ?? ' '}\t=> ${code.result}`
             ).join('\n');
         },
-        formatQuads: (quads: Quadruple[]) => {
+        formatQuads: (quads: Quadruple[] | undefined) => { // Allow undefined
             if (!quads || quads.length === 0) return "(empty)";
             return quads.map((quad, index) =>
                  `${index}: (${quad.op}, ${quad.arg1 ?? '_'}, ${quad.arg2 ?? '_'}, ${quad.result})`
@@ -156,14 +161,20 @@ Structure your explanation clearly. Use markdown formatting for readability. Foc
 const explainCodeFlow = ai.defineFlow(
   {
     name: 'explainCodeFlow',
-    inputSchema: ExplainCodeInputSchema,
+    inputSchema: ExplainCodeInputSchema, // The flow takes the original input schema
     outputSchema: ExplainCodeOutputSchema,
   },
   async (input) => {
 
-    // Optionally, pre-process input data further if needed before passing to the prompt
+    // Pre-stringify the JSON data before passing it to the prompt
+    const promptInput = {
+        ...input,
+        tokensStringified: JSON.stringify(input.tokens, null, 2),
+        symbolTableStringified: input.symbolTable ? JSON.stringify(input.symbolTable, null, 2) : "(No Symbol Table provided or generated)",
+    };
 
-    const { output } = await explainPrompt(input);
+    // Call the prompt with the processed input
+    const { output } = await explainPrompt(promptInput);
 
     if (!output) {
         throw new Error("AI failed to generate an explanation.");
@@ -172,4 +183,3 @@ const explainCodeFlow = ai.defineFlow(
     return output;
   }
 );
-
