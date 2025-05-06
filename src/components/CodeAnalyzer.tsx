@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Play, Trash2, Wand2, AlertCircle } from 'lucide-react';
+import { Loader2, Play, Trash2, AlertCircle } from 'lucide-react'; // Removed Wand2
 import { tokenize } from '@/lib/lexer';
 import { generateTAC, generateQuadruples } from '@/lib/intermediateCode';
 import { generateSymbolTable } from '@/lib/symbolTable'; // Import symbol table generator
@@ -19,7 +19,7 @@ import type { Token, ThreeAddressCode, Quadruple, Language, SymbolTable, Analysi
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { explainCode } from '@/ai/flows/explain-code-flow'; // Import the AI flow
+// Removed import { explainCode } from '@/ai/flows/explain-code-flow';
 
 // More complex sample code examples
 const sampleCode: Record<Language, string> = {
@@ -138,10 +138,11 @@ export default function CodeAnalyzer() {
   const [sourceCode, setSourceCode] = useState(sampleCode.c);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isExplaining, setIsExplaining] = useState(false);
-  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  // Removed AI explanation state
+  // const [isExplaining, setIsExplaining] = useState(false);
+  // const [aiExplanation, setAiExplanation] = useState<string | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const [explanationError, setExplanationError] = useState<string | null>(null);
+  // const [explanationError, setExplanationError] = useState<string | null>(null);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -153,9 +154,9 @@ export default function CodeAnalyzer() {
 
   const clearResults = useCallback(() => {
       setAnalysisResult(null);
-      setAiExplanation(null);
+      // setAiExplanation(null); // Removed
       setAnalysisError(null);
-      setExplanationError(null);
+      // setExplanationError(null); // Removed
   }, []);
 
 
@@ -253,49 +254,12 @@ export default function CodeAnalyzer() {
     }
   };
 
+   // Removed handleExplain function
+   /*
    const handleExplain = async () => {
-       if (!analysisResult || !sourceCode) {
-           toast({
-               title: 'Analysis Required',
-               description: 'Please analyze the code first before requesting an explanation.',
-               variant: 'destructive',
-           });
-           return;
-       }
-
-       setIsExplaining(true);
-       setAiExplanation(null); // Clear previous explanation
-       setExplanationError(null); // Clear previous error
-
-       try {
-           const explanation = await explainCode({
-               language: selectedLanguage,
-               sourceCode: sourceCode,
-               tokens: analysisResult.tokens,
-               threeAddressCode: analysisResult.threeAddressCode,
-               quadruples: analysisResult.quadruples,
-               symbolTable: analysisResult.symbolTable,
-           });
-
-           setAiExplanation(explanation.explanation);
-           toast({
-               title: 'Explanation Generated',
-               description: 'AI explanation provided below.',
-           });
-
-       } catch (error: any) {
-           console.error("AI Explanation Error:", error);
-           const errorMsg = error.message || "Failed to get explanation from AI.";
-           setExplanationError(errorMsg);
-           toast({
-               title: 'Explanation Error',
-               description: errorMsg,
-               variant: 'destructive',
-           });
-       } finally {
-           setIsExplaining(false);
-       }
+       // ... existing code removed ...
    };
+   */
 
 
   return (
@@ -304,14 +268,14 @@ export default function CodeAnalyzer() {
       <Card>
         <CardHeader>
           <CardTitle>Compiler Design Toolkit</CardTitle>
-          <CardDescription>Enter code, select language, and analyze to see tokens, intermediate code, and symbol table. Use the AI Explain feature for insights.</CardDescription>
+          <CardDescription>Enter code, select language, and analyze to see tokens, intermediate code, and symbol table.</CardDescription> {/* Updated description */}
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end justify-between">
                 {/* Left side: Language Select */}
                 <div className="w-full sm:w-auto">
                     <Label htmlFor="language-select" className="mb-2 block">Language</Label>
-                    <Select value={selectedLanguage} onValueChange={handleLanguageChange} disabled={isLoading || isExplaining}>
+                    <Select value={selectedLanguage} onValueChange={handleLanguageChange} disabled={isLoading /* || isExplaining removed */}>
                         <SelectTrigger id="language-select" className="w-full sm:w-[180px]">
                             <SelectValue placeholder="Select language" />
                         </SelectTrigger>
@@ -324,16 +288,18 @@ export default function CodeAnalyzer() {
                 </div>
                 {/* Right side: Action Buttons */}
                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                     <Button onClick={handleClear} variant="outline" disabled={isLoading || isExplaining} className="w-full sm:w-auto">
+                     <Button onClick={handleClear} variant="outline" disabled={isLoading /* || isExplaining removed */} className="w-full sm:w-auto">
                         <Trash2 className="mr-2 h-4 w-4" /> Clear
                      </Button>
-                     <Button onClick={handleAnalyze} disabled={isLoading || isExplaining} className="w-full sm:w-auto">
+                     <Button onClick={handleAnalyze} disabled={isLoading /* || isExplaining removed */} className="w-full sm:w-auto">
                         {isLoading ? (
                             <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analyzing... </>
                         ) : (
                             <> <Play className="mr-2 h-4 w-4" /> Analyze Code </>
                         )}
                      </Button>
+                      {/* Removed AI Explain button */}
+                      {/*
                       <Button
                           onClick={handleExplain}
                           disabled={isLoading || isExplaining || !analysisResult || !!analysisError}
@@ -346,6 +312,7 @@ export default function CodeAnalyzer() {
                               <> <Wand2 className="mr-2 h-4 w-4" /> AI Explain </>
                           )}
                       </Button>
+                      */}
                  </div>
             </div>
           <Textarea
@@ -360,7 +327,7 @@ export default function CodeAnalyzer() {
             }}
             className="min-h-[300px] font-mono text-sm bg-muted/50 border rounded-md p-3 focus:ring-2 focus:ring-primary/50"
             rows={15}
-            disabled={isLoading || isExplaining}
+            disabled={isLoading /* || isExplaining removed */}
           />
         </CardContent>
       </Card>
@@ -561,43 +528,14 @@ export default function CodeAnalyzer() {
         </Card>
       )}
 
-       {/* AI Explanation Section */}
-      {(isExplaining || aiExplanation || explanationError) && (
-         <Card>
-             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Wand2 className="w-5 h-5 text-primary" />
-                    AI Explanation
-                </CardTitle>
-                 <CardDescription>An AI-generated explanation of the analyzed code and its components.</CardDescription>
-             </CardHeader>
-             <CardContent>
-                 {isExplaining && (
-                     <div className="flex items-center justify-center p-6 border-dashed rounded-md">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                        <span className="text-muted-foreground">Generating explanation...</span>
-                    </div>
-                 )}
-                  {!isExplaining && explanationError && (
-                    <div className="border-destructive bg-destructive/10 p-4 rounded-md">
-                       <div className="flex items-center space-x-2 mb-1">
-                            <AlertCircle className="w-5 h-5 text-destructive" />
-                            <h4 className="text-destructive font-semibold">Explanation Error</h4>
-                       </div>
-                        <p className="text-destructive text-sm">{explanationError}</p>
-                    </div>
-                 )}
-                 {!isExplaining && aiExplanation && !explanationError && (
-                    <ScrollArea className="h-[300px] w-full rounded-md border bg-muted/30 p-4">
-                        <pre className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-                            {aiExplanation}
-                        </pre>
-                    </ScrollArea>
-                 )}
-             </CardContent>
-         </Card>
-      )}
+       {/* Removed AI Explanation Section */}
+       {/*
+       {(isExplaining || aiExplanation || explanationError) && (
+         // ... existing section removed ...
+       )}
+       */}
 
     </div>
   );
 }
+
