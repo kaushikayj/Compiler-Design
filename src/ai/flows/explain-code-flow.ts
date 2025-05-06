@@ -42,7 +42,7 @@ const SymbolTableEntrySchema = z.object({
 
 const SymbolTableSchema = z.record(z.string(), SymbolTableEntrySchema);
 
-export const ExplainCodeInputSchema = z.object({
+const ExplainCodeInputSchema = z.object({
   language: z.enum(['c', 'cpp', 'java']).describe('The programming language of the source code.'),
   sourceCode: z.string().describe('The source code that was analyzed.'),
   tokens: z.array(TokenSchema).describe('The list of lexical tokens generated from the source code.'),
@@ -54,7 +54,7 @@ export type ExplainCodeInput = z.infer<typeof ExplainCodeInputSchema>;
 
 
 // --- Output Schema ---
-export const ExplainCodeOutputSchema = z.object({
+const ExplainCodeOutputSchema = z.object({
   explanation: z.string().describe('A comprehensive explanation of the code, referencing the provided analysis components (tokens, TAC, quads, symbol table). Explain the overall purpose, key structures, and how the intermediate representations relate to the source code.'),
 });
 export type ExplainCodeOutput = z.infer<typeof ExplainCodeOutputSchema>;
@@ -172,3 +172,4 @@ const explainCodeFlow = ai.defineFlow(
     return output;
   }
 );
+
