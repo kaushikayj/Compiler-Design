@@ -1,4 +1,5 @@
 
+
 // Represents a lexical token identified by the lexer
 export interface Token {
   type: TokenType; // The category of the token (e.g., KEYWORD, IDENTIFIER)
@@ -15,6 +16,7 @@ export type TokenType =
   | 'STRING'
   | 'COMMENT' // Optional: if comments are treated as tokens
   | 'WHITESPACE' // Optional: if whitespace is significant
+  | 'PREPROCESSOR' // Added for C/C++ #include etc.
   | 'EOF' // End of File marker
   | 'UNKNOWN'; // For errors or unrecognized characters
 
@@ -34,10 +36,15 @@ export interface Quadruple {
   result: string;   // Result location
 }
 
+// Supported languages
+export type Language = 'c' | 'cpp' | 'java';
+
+
 // Type for storing analysis history in Firestore
  export interface AnalysisHistoryItem {
    id?: string; // Firestore document ID (optional, added after retrieval)
    userId: string;
+   language: Language; // Added language field
    sourceCode: string;
    tokens: Token[];
    threeAddressCode: ThreeAddressCode[];

@@ -10,10 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Inbox } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area'; // Import ScrollArea
+import { AlertCircle, Inbox, Code2 } from 'lucide-react';
 import type { AnalysisHistoryItem, Token, ThreeAddressCode, Quadruple } from '@/types/compiler'; // Assuming types are defined here
 import { format } from 'date-fns'; // For formatting timestamps
-
 
 // Helper function to safely format timestamp
 const formatTimestamp = (timestamp: any): string => {
@@ -34,6 +34,17 @@ const formatTimestamp = (timestamp: any): string => {
     }
 };
 
+// Helper to format language nicely
+const formatLanguage = (lang: string | undefined): string => {
+    if (!lang) return 'Unknown';
+    switch (lang.toLowerCase()) {
+        case 'c': return 'C';
+        case 'cpp': return 'C++';
+        case 'java': return 'Java';
+        default: return lang;
+    }
+}
+
 
 export default function HistoryPage() {
   const { user } = useAuth();
@@ -52,7 +63,18 @@ export default function HistoryPage() {
           const querySnapshot = await getDocs(q);
           const fetchedHistory: AnalysisHistoryItem[] = [];
           querySnapshot.forEach((doc) => {
-            fetchedHistory.push({ id: doc.id, ...doc.data() } as AnalysisHistoryItem);
+            // Ensure all required fields are present, provide defaults if necessary
+            const data = doc.data();
+            fetchedHistory.push({
+                id: doc.id,
+                userId: data.userId || '',
+                language: data.language || 'unknown', // Default language if missing
+                sourceCode: data.sourceCode || '',
+                tokens: data.tokens || [],
+                threeAddressCode: data.threeAddressCode || [],
+                quadruples: data.quadruples || [],
+                timestamp: data.timestamp || null, // Handle missing timestamp
+            } as AnalysisHistoryItem);
           });
           setHistory(fetchedHistory);
         } catch (err) {
@@ -64,7 +86,7 @@ export default function HistoryPage() {
       };
       fetchHistory();
     } else {
-      // Handle case where user is not logged in (though page access should ideally be protected)
+      // Handle case where user is not logged in
       setIsLoading(false);
        setHistory([]); // Clear history if user logs out
     }
@@ -78,9 +100,9 @@ export default function HistoryPage() {
 
         {isLoading && (
           <div className="space-y-4">
-             <Skeleton className="h-24 w-full" />
-             <Skeleton className="h-24 w-full" />
-             <Skeleton className="h-24 w-full" />
+             <Skeleton className="h-24 w-full rounded-lg" />
+             <Skeleton className="h-24 w-full rounded-lg" />
+             <Skeleton className="h-24 w-full rounded-lg" />
           </div>
         )}
 
@@ -108,7 +130,7 @@ export default function HistoryPage() {
         )}
 
         {!isLoading && !error && user && history.length === 0 && (
-          <Card className="text-center py-10">
+          <Card className="text-center py-10 border-dashed">
             <CardHeader>
                 <Inbox className="mx-auto h-12 w-12 text-muted-foreground" />
                 <CardTitle className="mt-4">No History Yet</CardTitle>
@@ -123,52 +145,93 @@ export default function HistoryPage() {
         {!isLoading && !error && user && history.length > 0 && (
           <Accordion type="single" collapsible className="w-full space-y-4">
             {history.map((item, index) => (
-              <AccordionItem key={item.id || index} value={`item-${index}`} className="bg-card rounded-lg shadow-sm border px-4">
-                <AccordionTrigger className="hover:no-underline py-4">
-                   <div className="flex justify-between w-full pr-4">
-                       <span className="font-medium truncate mr-4">Analysis from: {formatTimestamp(item.timestamp)}</span>
-                       <span className="text-sm text-muted-foreground flex-shrink-0">{item.tokens?.length || 0} tokens</span>
+              <AccordionItem key={item.id || index} value={`item-${index}`} className="bg-card rounded-lg shadow-sm border">
+                <AccordionTrigger className="hover:no-underline py-4 px-4 text-sm sm:text-base">
+                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full gap-2 sm:gap-4">
+                       <div className="flex items-center gap-2 flex-shrink min-w-0">
+                            <Code2 className="w-4 h-4 text-muted-foreground flex-shrink-0"/>
+                            <span className="font-medium text-primary truncate">{formatLanguage(item.language)} Analysis</span>
+                       </div>
+                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 w-full sm:w-auto text-left sm:text-right">
+                            <span className="text-muted-foreground flex-shrink-0">{formatTimestamp(item.timestamp)}</span>
+                            <span className="text-xs text-muted-foreground sm:text-sm">{item.tokens?.length || 0} tokens</span>
+                       </div>
                    </div>
-
                 </AccordionTrigger>
-                <AccordionContent className="pt-2 pb-4 space-y-6">
+                <AccordionContent className="px-4 pt-2 pb-4 space-y-6">
                    {/* Source Code */}
                   <div>
-                    <h4 className="text-md font-semibold mb-2">Source Code</h4>
-                    <pre className="bg-muted p-3 rounded-md text-sm overflow-x-auto font-mono">{item.sourceCode}</pre>
+                    <h4 className="text-md font-semibold mb-2">Source Code ({formatLanguage(item.language)})</h4>
+                     <ScrollArea className="h-[200px] w-full rounded-md border bg-muted p-3">
+                        <pre className="text-sm font-mono whitespace-pre-wrap break-words">
+                          {item.sourceCode || 'No source code recorded.'}
+                        </pre>
+                    </ScrollArea>
                   </div>
 
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Tokens */}
                         <div className="lg:col-span-1">
-                          <h4 className="text-md font-semibold mb-2">Tokens</h4>
+                          <h4 className="text-md font-semibold mb-2">Tokens ({item.tokens?.length || 0})</h4>
                           {item.tokens && item.tokens.length > 0 ? (
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Type</TableHead>
-                                  <TableHead>Value</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {item.tokens.map((token, tIndex) => (
-                                  <TableRow key={`token-${index}-${tIndex}`}>
-                                    <TableCell className="font-medium">{token.type}</TableCell>
-                                    <TableCell>{token.value}</TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          ) : <p className="text-sm text-muted-foreground">No tokens recorded.</p>}
+                             <ScrollArea className="h-[400px] border rounded-md">
+                                <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Value</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {item.tokens.map((token, tIndex) => (
+                                    <TableRow key={`token-${index}-${tIndex}`}>
+                                        <TableCell className="font-medium">{token.type}</TableCell>
+                                        <TableCell className="font-mono break-all">{token.value}</TableCell>
+                                    </TableRow>
+                                    ))}
+                                </TableBody>
+                                </Table>
+                            </ScrollArea>
+                          ) : <p className="text-sm text-muted-foreground p-4 border rounded-md">No tokens recorded.</p>}
                         </div>
 
                         {/* Intermediate Code */}
                         <div className="lg:col-span-2 space-y-4">
                             <div>
-                                <h4 className="text-md font-semibold mb-2">Three-Address Code (TAC)</h4>
+                                <h4 className="text-md font-semibold mb-2">Three-Address Code ({item.threeAddressCode?.length || 0})</h4>
                                 {item.threeAddressCode && item.threeAddressCode.length > 0 ? (
-                                <Table>
-                                    <TableHeader>
+                                 <ScrollArea className="h-[200px] border rounded-md">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>#</TableHead>
+                                                <TableHead>Op</TableHead>
+                                                <TableHead>Arg1</TableHead>
+                                                <TableHead>Arg2</TableHead>
+                                                <TableHead>Result</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {item.threeAddressCode.map((code, cIndex) => (
+                                            <TableRow key={`tac-${index}-${cIndex}`}>
+                                                <TableCell>{cIndex + 1}</TableCell>
+                                                <TableCell className="font-mono">{code.op}</TableCell>
+                                                <TableCell className="font-mono">{code.arg1 ?? '-'}</TableCell>
+                                                <TableCell className="font-mono">{code.arg2 ?? '-'}</TableCell>
+                                                <TableCell className="font-mono">{code.result}</TableCell>
+                                            </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                 </ScrollArea>
+                                ) : <p className="text-sm text-muted-foreground p-4 border rounded-md">No TAC recorded.</p>}
+                           </div>
+                            <div>
+                                <h4 className="text-md font-semibold mb-2">Quadruples ({item.quadruples?.length || 0})</h4>
+                                {item.quadruples && item.quadruples.length > 0 ? (
+                                 <ScrollArea className="h-[200px] border rounded-md">
+                                    <Table>
+                                        <TableHeader>
                                         <TableRow>
                                             <TableHead>#</TableHead>
                                             <TableHead>Op</TableHead>
@@ -176,47 +239,21 @@ export default function HistoryPage() {
                                             <TableHead>Arg2</TableHead>
                                             <TableHead>Result</TableHead>
                                         </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {item.threeAddressCode.map((code, cIndex) => (
-                                        <TableRow key={`tac-${index}-${cIndex}`}>
-                                            <TableCell>{cIndex + 1}</TableCell>
-                                            <TableCell className="font-mono">{code.op}</TableCell>
-                                            <TableCell className="font-mono">{code.arg1 ?? '-'}</TableCell>
-                                            <TableCell className="font-mono">{code.arg2 ?? '-'}</TableCell>
-                                            <TableCell className="font-mono">{code.result}</TableCell>
-                                        </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                        {item.quadruples.map((quad, qIndex) => (
+                                            <TableRow key={`quad-${index}-${qIndex}`}>
+                                            <TableCell>{qIndex}</TableCell>
+                                            <TableCell className="font-mono">{quad.op}</TableCell>
+                                            <TableCell className="font-mono">{quad.arg1 ?? '-'}</TableCell>
+                                            <TableCell className="font-mono">{quad.arg2 ?? '-'}</TableCell>
+                                            <TableCell className="font-mono">{quad.result}</TableCell>
+                                            </TableRow>
                                         ))}
-                                    </TableBody>
-                                </Table>
-                                ) : <p className="text-sm text-muted-foreground">No TAC recorded.</p>}
-                           </div>
-                            <div>
-                                <h4 className="text-md font-semibold mb-2">Quadruples</h4>
-                                {item.quadruples && item.quadruples.length > 0 ? (
-                                <Table>
-                                    <TableHeader>
-                                    <TableRow>
-                                        <TableHead>#</TableHead>
-                                        <TableHead>Op</TableHead>
-                                        <TableHead>Arg1</TableHead>
-                                        <TableHead>Arg2</TableHead>
-                                        <TableHead>Result</TableHead>
-                                    </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                    {item.quadruples.map((quad, qIndex) => (
-                                        <TableRow key={`quad-${index}-${qIndex}`}>
-                                        <TableCell>{qIndex}</TableCell>
-                                        <TableCell className="font-mono">{quad.op}</TableCell>
-                                        <TableCell className="font-mono">{quad.arg1 ?? '-'}</TableCell>
-                                        <TableCell className="font-mono">{quad.arg2 ?? '-'}</TableCell>
-                                        <TableCell className="font-mono">{quad.result}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                    </TableBody>
-                                </Table>
-                                ) : <p className="text-sm text-muted-foreground">No Quadruples recorded.</p>}
+                                        </TableBody>
+                                    </Table>
+                                 </ScrollArea>
+                                ) : <p className="text-sm text-muted-foreground p-4 border rounded-md">No Quadruples recorded.</p>}
                             </div>
                          </div>
                    </div>
@@ -232,4 +269,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
