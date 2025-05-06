@@ -10,21 +10,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area'; // Import ScrollArea
-import { AlertCircle, Inbox, Code2 } from 'lucide-react';
-import type { AnalysisHistoryItem, Token, ThreeAddressCode, Quadruple } from '@/types/compiler'; // Assuming types are defined here
-import { format } from 'date-fns'; // For formatting timestamps
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertCircle, Inbox, Code2, Binary, ListTree, Braces } from 'lucide-react'; // Added icons
+import type { AnalysisHistoryItem, Token, ThreeAddressCode, Quadruple, SymbolTable } from '@/types/compiler'; // Update type import
+import { format } from 'date-fns';
 
 // Helper function to safely format timestamp
 const formatTimestamp = (timestamp: any): string => {
     if (!timestamp) return 'N/A';
     try {
-        // Firestore Timestamps have toDate() method
-        if (timestamp.toDate) {
-            return format(timestamp.toDate(), 'PPpp'); // Format like: Jul 29, 2024, 1:30:00 PM
+        if (timestamp.toDate) { // Firestore Timestamps
+            return format(timestamp.toDate(), 'PPpp'); // e.g., Jul 29, 2024, 1:30:00 PM
         }
-        // Handle potential string or number timestamps (less ideal)
-        if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+        if (typeof timestamp === 'string' || typeof timestamp === 'number') { // Other formats
              return format(new Date(timestamp), 'PPpp');
         }
         return 'Invalid Date';
@@ -45,6 +43,11 @@ const formatLanguage = (lang: string | undefined): string => {
     }
 }
 
+// Helper function to count symbols
+const countSymbols = (symbolTable: SymbolTable | undefined): number => {
+    return symbolTable ? Object.keys(symbolTable).length : 0;
+}
+
 
 export default function HistoryPage() {
   const { user } = useAuth();
@@ -63,18 +66,19 @@ export default function HistoryPage() {
           const querySnapshot = await getDocs(q);
           const fetchedHistory: AnalysisHistoryItem[] = [];
           querySnapshot.forEach((doc) => {
-            // Ensure all required fields are present, provide defaults if necessary
             const data = doc.data();
+            // Map Firestore data to AnalysisHistoryItem, ensuring all fields exist
             fetchedHistory.push({
                 id: doc.id,
                 userId: data.userId || '',
-                language: data.language || 'unknown', // Default language if missing
+                language: data.language || 'unknown',
                 sourceCode: data.sourceCode || '',
                 tokens: data.tokens || [],
                 threeAddressCode: data.threeAddressCode || [],
                 quadruples: data.quadruples || [],
-                timestamp: data.timestamp || null, // Handle missing timestamp
-            } as AnalysisHistoryItem);
+                symbolTable: data.symbolTable || {}, // Add symbol table, default to empty object
+                timestamp: data.timestamp || null,
+            });
           });
           setHistory(fetchedHistory);
         } catch (err) {
@@ -86,11 +90,10 @@ export default function HistoryPage() {
       };
       fetchHistory();
     } else {
-      // Handle case where user is not logged in
       setIsLoading(false);
-       setHistory([]); // Clear history if user logs out
+       setHistory([]);
     }
-  }, [user]); // Re-fetch when user changes
+  }, [user]);
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -100,9 +103,9 @@ export default function HistoryPage() {
 
         {isLoading && (
           <div className="space-y-4">
-             <Skeleton className="h-24 w-full rounded-lg" />
-             <Skeleton className="h-24 w-full rounded-lg" />
-             <Skeleton className="h-24 w-full rounded-lg" />
+             <Skeleton className="h-28 w-full rounded-lg" />
+             <Skeleton className="h-28 w-full rounded-lg" />
+             <Skeleton className="h-28 w-full rounded-lg" />
           </div>
         )}
 
@@ -152,9 +155,10 @@ export default function HistoryPage() {
                             <Code2 className="w-4 h-4 text-muted-foreground flex-shrink-0"/>
                             <span className="font-medium text-primary truncate">{formatLanguage(item.language)} Analysis</span>
                        </div>
-                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 w-full sm:w-auto text-left sm:text-right">
+                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 w-full sm:w-auto text-left sm:text-right text-xs sm:text-sm">
                             <span className="text-muted-foreground flex-shrink-0">{formatTimestamp(item.timestamp)}</span>
-                            <span className="text-xs text-muted-foreground sm:text-sm">{item.tokens?.length || 0} tokens</span>
+                            <span className="text-muted-foreground">{item.tokens?.length || 0} tokens</span>
+                            <span className="text-muted-foreground">{countSymbols(item.symbolTable)} symbols</span>
                        </div>
                    </div>
                 </AccordionTrigger>
@@ -162,47 +166,83 @@ export default function HistoryPage() {
                    {/* Source Code */}
                   <div>
                     <h4 className="text-md font-semibold mb-2">Source Code ({formatLanguage(item.language)})</h4>
-                     <ScrollArea className="h-[200px] w-full rounded-md border bg-muted p-3">
+                     <ScrollArea className="h-[200px] w-full rounded-md border bg-muted/50 p-3">
                         <pre className="text-sm font-mono whitespace-pre-wrap break-words">
                           {item.sourceCode || 'No source code recorded.'}
                         </pre>
                     </ScrollArea>
                   </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Tokens */}
-                        <div className="lg:col-span-1">
-                          <h4 className="text-md font-semibold mb-2">Tokens ({item.tokens?.length || 0})</h4>
-                          {item.tokens && item.tokens.length > 0 ? (
-                             <ScrollArea className="h-[400px] border rounded-md">
-                                <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Value</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {item.tokens.map((token, tIndex) => (
-                                    <TableRow key={`token-${index}-${tIndex}`}>
-                                        <TableCell className="font-medium">{token.type}</TableCell>
-                                        <TableCell className="font-mono break-all">{token.value}</TableCell>
-                                    </TableRow>
-                                    ))}
-                                </TableBody>
-                                </Table>
-                            </ScrollArea>
-                          ) : <p className="text-sm text-muted-foreground p-4 border rounded-md">No tokens recorded.</p>}
-                        </div>
+                  {/* Analysis Results Grid */}
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-                        {/* Intermediate Code */}
-                        <div className="lg:col-span-2 space-y-4">
-                            <div>
-                                <h4 className="text-md font-semibold mb-2">Three-Address Code ({item.threeAddressCode?.length || 0})</h4>
+                      {/* Left Column: Tokens & Symbol Table */}
+                      <div className="space-y-6">
+                          {/* Tokens */}
+                          <div>
+                              <h4 className="text-md font-semibold mb-2 flex items-center gap-2"><Braces className="w-4 h-4 text-muted-foreground"/> Tokens ({item.tokens?.length || 0})</h4>
+                              {item.tokens && item.tokens.length > 0 ? (
+                                  <ScrollArea className="h-[300px] border rounded-md">
+                                      <Table>
+                                          <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-sm">
+                                              <TableRow>
+                                                  <TableHead>Type</TableHead>
+                                                  <TableHead>Value</TableHead>
+                                                  <TableHead className="text-right">Line</TableHead>
+                                              </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                              {item.tokens.map((token, tIndex) => (
+                                                  <TableRow key={`token-${index}-${tIndex}`}>
+                                                      <TableCell className="font-medium">{token.type}</TableCell>
+                                                      <TableCell className="font-mono break-all">{token.value === '\n' ? '\\n' : token.value}</TableCell>
+                                                       <TableCell className="text-right text-muted-foreground">{token.line ?? '-'}</TableCell>
+                                                  </TableRow>
+                                              ))}
+                                          </TableBody>
+                                      </Table>
+                                  </ScrollArea>
+                              ) : <p className="text-sm text-muted-foreground p-4 border rounded-md">No tokens recorded.</p>}
+                          </div>
+
+                           {/* Symbol Table */}
+                           <div>
+                              <h4 className="text-md font-semibold mb-2 flex items-center gap-2"><ListTree className="w-4 h-4 text-muted-foreground"/> Symbol Table ({countSymbols(item.symbolTable)})</h4>
+                                {item.symbolTable && countSymbols(item.symbolTable) > 0 ? (
+                                    <ScrollArea className="h-[300px] border rounded-md">
+                                        <Table>
+                                            <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-sm">
+                                                <TableRow>
+                                                    <TableHead>Identifier</TableHead>
+                                                    <TableHead>Type</TableHead>
+                                                    <TableHead>Scope</TableHead>
+                                                    {/* Add other columns if they exist in your data */}
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {Object.entries(item.symbolTable).map(([name, entry]) => (
+                                                    <TableRow key={`symbol-${index}-${name}`}>
+                                                        <TableCell className="font-mono font-semibold">{name}</TableCell>
+                                                        <TableCell>{entry.type ?? 'unknown'}</TableCell>
+                                                        <TableCell>{entry.scope ?? 'global'}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </ScrollArea>
+                                ) : <p className="text-sm text-muted-foreground p-4 border rounded-md">No Symbol Table recorded.</p>}
+                           </div>
+                      </div>
+
+                       {/* Right Column: Intermediate Code */}
+                       <div className="space-y-6">
+                           {/* Three-Address Code */}
+                           <div>
+                              <h4 className="text-md font-semibold mb-2 flex items-center gap-2"><Binary className="w-4 h-4 text-muted-foreground"/> Three-Address Code ({item.threeAddressCode?.length || 0})</h4>
                                 {item.threeAddressCode && item.threeAddressCode.length > 0 ? (
-                                 <ScrollArea className="h-[200px] border rounded-md">
+                                 <ScrollArea className="h-[300px] border rounded-md">
                                     <Table>
-                                        <TableHeader>
+                                        <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-sm">
                                             <TableRow>
                                                 <TableHead>#</TableHead>
                                                 <TableHead>Op</TableHead>
@@ -214,11 +254,11 @@ export default function HistoryPage() {
                                         <TableBody>
                                             {item.threeAddressCode.map((code, cIndex) => (
                                             <TableRow key={`tac-${index}-${cIndex}`}>
-                                                <TableCell>{cIndex + 1}</TableCell>
+                                                <TableCell className="w-[50px] text-muted-foreground">{cIndex + 1}</TableCell>
                                                 <TableCell className="font-mono">{code.op}</TableCell>
-                                                <TableCell className="font-mono">{code.arg1 ?? '-'}</TableCell>
-                                                <TableCell className="font-mono">{code.arg2 ?? '-'}</TableCell>
-                                                <TableCell className="font-mono">{code.result}</TableCell>
+                                                <TableCell className="font-mono">{code.arg1 ?? '—'}</TableCell>
+                                                <TableCell className="font-mono">{code.arg2 ?? '—'}</TableCell>
+                                                <TableCell className="font-mono font-semibold">{code.result}</TableCell>
                                             </TableRow>
                                             ))}
                                         </TableBody>
@@ -226,12 +266,14 @@ export default function HistoryPage() {
                                  </ScrollArea>
                                 ) : <p className="text-sm text-muted-foreground p-4 border rounded-md">No TAC recorded.</p>}
                            </div>
+
+                           {/* Quadruples */}
                             <div>
-                                <h4 className="text-md font-semibold mb-2">Quadruples ({item.quadruples?.length || 0})</h4>
+                              <h4 className="text-md font-semibold mb-2 flex items-center gap-2"><Binary className="w-4 h-4 text-muted-foreground"/> Quadruples ({item.quadruples?.length || 0})</h4>
                                 {item.quadruples && item.quadruples.length > 0 ? (
-                                 <ScrollArea className="h-[200px] border rounded-md">
+                                 <ScrollArea className="h-[300px] border rounded-md">
                                     <Table>
-                                        <TableHeader>
+                                        <TableHeader className="sticky top-0 bg-card/95 backdrop-blur-sm">
                                         <TableRow>
                                             <TableHead>#</TableHead>
                                             <TableHead>Op</TableHead>
@@ -243,11 +285,11 @@ export default function HistoryPage() {
                                         <TableBody>
                                         {item.quadruples.map((quad, qIndex) => (
                                             <TableRow key={`quad-${index}-${qIndex}`}>
-                                            <TableCell>{qIndex}</TableCell>
+                                            <TableCell className="w-[50px] text-muted-foreground">{qIndex}</TableCell>
                                             <TableCell className="font-mono">{quad.op}</TableCell>
-                                            <TableCell className="font-mono">{quad.arg1 ?? '-'}</TableCell>
-                                            <TableCell className="font-mono">{quad.arg2 ?? '-'}</TableCell>
-                                            <TableCell className="font-mono">{quad.result}</TableCell>
+                                            <TableCell className="font-mono">{quad.arg1 ?? '—'}</TableCell>
+                                            <TableCell className="font-mono">{quad.arg2 ?? '—'}</TableCell>
+                                            <TableCell className="font-mono font-semibold">{quad.result}</TableCell>
                                             </TableRow>
                                         ))}
                                         </TableBody>
@@ -255,8 +297,8 @@ export default function HistoryPage() {
                                  </ScrollArea>
                                 ) : <p className="text-sm text-muted-foreground p-4 border rounded-md">No Quadruples recorded.</p>}
                             </div>
-                         </div>
-                   </div>
+                         </div> {/* End Right Column */}
+                   </div> {/* End Grid */}
                 </AccordionContent>
               </AccordionItem>
             ))}
