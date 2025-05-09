@@ -6,10 +6,10 @@ This project is a **web-based compiler toolkit** that provides essential modules
 
 ## ✨ Features
 
-- 🧾 **Lexical Analyzer**: Users can input source code and tokenize it using a custom lexer built in JavaScript.
-- 📊 **Token Display**: Tokens are displayed in a clean and structured table format.
-- ⚙️ **Intermediate Code Generator**: Automatically generates intermediate representations such as **Three-Address Code (TAC)** or **Quadruples**.
-- 💾 **Session History (optional)**: You may implement local storage or a backend of your choice to store user inputs and results.
+-  **Lexical Analyzer**: Users can input source code and tokenize it using a custom lexer built in JavaScript.
+-  **Token Display**: Tokens are displayed in a clean and structured table format.
+- **Intermediate Code Generator**: Automatically generates intermediate representations such as **Three-Address Code (TAC)** or **Quadruples**.
+-  **Session History (optional)**: You may implement local storage or a backend of your choice to store user inputs and results.
 
 ---
 
@@ -22,7 +22,7 @@ _Add screenshots of:_
 
 ---
 
-## 🚀 Getting Started (Run Locally)
+## Getting Started (Run Locally)
 
 ### 1. Clone or Download the Project
 ```bash
